@@ -152,11 +152,8 @@
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById('quizResults').style.display = 'block';
-                document.getElementById('percentageScore').textContent = `${data.percentage_score}%`;
-                document.getElementById('rawScore').textContent = `You got ${data.score} out of ${data.total_questions} questions right.`;
-                document.getElementById('quizForm').style.display = 'none'; // Hide the form after submission
-                document.querySelector('.quiz-navigation').style.display = 'none'; // Hide navigation buttons
+                // Redirect to the new results page
+                window.location.href = `/results/${data.quiz_id}`;
             })
             .catch((error) => {
                 console.error('Error:', error);

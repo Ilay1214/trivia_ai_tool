@@ -389,3 +389,137 @@ body {
     color: #b0b0b0;
     margin-bottom: 25px;
 }
+
+/* Results Page Specific Styles */
+.quiz-results-card {
+    margin-top: 20px;
+}
+
+.questions-review-title {
+    margin-top: 40px;
+    margin-bottom: 30px;
+    color: #e94560;
+    text-align: center;
+    font-size: 1.8em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.questions-review-title i {
+    margin-right: 15px;
+    color: #e94560;
+    font-size: 1.2em;
+}
+
+.question-result-block {
+    background-color: #1a1a2e;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    border: 1px solid #0f3460;
+    transition: all 0.3s ease;
+}
+
+.question-result-block.correct-answer {
+    border-left: 5px solid #28a745; /* Green border for correct */
+}
+
+.question-result-block.wrong-answer {
+    border-left: 5px solid #dc3545; /* Red border for wrong */
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.question-review-text {
+    font-size: 1.3em;
+    color: #e0e0e0;
+    margin: 0;
+    flex-grow: 1;
+    line-height: 1.4;
+}
+
+.review-toggle-button {
+    background-color: #0f3460;
+    color: #e0e0e0;
+    border: 1px solid #e94560;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-toggle-button:hover {
+    background-color: #e94560;
+    color: #ffffff;
+}
+
+.review-details {
+    border-top: 1px dashed #0f3460;
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.option-review {
+    padding: 8px 0;
+    color: #b0b0b0;
+    font-size: 1em;
+    line-height: 1.4;
+}
+
+.option-review.correct {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.option-review.user-wrong {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.your-answer, .correct-answer-text {
+    margin-top: 10px;
+    font-size: 1.1em;
+    color: #b0b0b0;
+}
+
+.your-answer span, .correct-answer-text span {
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+.text-success {
+    color: #28a745;
+}
+
+.text-danger {
+    color: #dc3545;
+}
+
+.explanation-text {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #0f3460;
+    font-size: 1em;
+    color: #b0b0b0;
+    line-height: 1.5;
+}
+
+.explanation-text span {
+    font-weight: 500;
+    color: #e0e0e0;
+}
+
+.mt-4 {
+    margin-top: 1.5rem !important;
+}

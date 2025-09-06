@@ -217,13 +217,23 @@ def submit_quiz():
     score = 0
     total_questions = len(quiz.questions)
 
+    if total_questions == 0:
+        return jsonify({'score': 0, 'total_questions': 0, 'percentage_score': 0}), 200
+
+    score_per_question = 100 / total_questions
+    percentage_score = 0
+
     for question in quiz.questions:
         question_id = str(question.id) # Ensure key matches frontend (string)
         if question_id in user_answers:
             if user_answers[question_id] == question.correct_answer:
                 score += 1
+                percentage_score += score_per_question
     
-    return jsonify({'score': score, 'total_questions': total_questions})
+    # Round the percentage score to two decimal places
+    percentage_score = round(percentage_score, 2)
+
+    return jsonify({'score': score, 'total_questions': total_questions, 'percentage_score': percentage_score})
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,0 +1,6 @@
+Flask
+python-dotenv
+Flask-Cors
+groq
+python-docx
+Flask-SQLAlchemy

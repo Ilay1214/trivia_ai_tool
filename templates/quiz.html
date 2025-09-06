@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Quiz</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h2 class="main-heading">Your AI Generated Quiz!</h2>
+
+        <div class="card quiz-card">
+            <h3 class="card-title"><i class="fas fa-question-circle"></i> Quiz Time!</h3>
+            <p class="quiz-info">Number of Questions: {{ num_questions }} | Time Limit: {{ time_limit }} minutes</p>
+
+            <div class="timer-display"><i class="fas fa-hourglass-half"></i> Time Left: <span id="time"></span></div>
+
+            <form id="quizForm" action="/submit_quiz" method="POST">
+                <div id="quizQuestions" class="quiz-questions">
+                    <!-- Questions will be dynamically inserted here -->
+                </div>
+                <button type="submit" class="generate-quiz-button" onclick="submitQuiz(event)"><i class="fas fa-check-circle"></i> Submit Quiz</button>
+            </form>
+
+            <div id="quizResults" class="quiz-results" style="display:none;">
+                <h4>Your Score: <span id="score"></span></h4>
+                <button onclick="window.location.href='/'" class="generate-quiz-button">Create New Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const quizId = {{ quiz_id }};
+        const numQuestions = {{ num_questions }};
+        const timeLimit = {{ time_limit }};
+        let timerInterval;
+        let currentQuizData = [];
+
+        function renderQuiz(quizData) {
+            const quizQuestionsContainer = document.getElementById('quizQuestions');
+            quizQuestionsContainer.innerHTML = ''; // Clear previous questions
+
+            quizData.forEach((q, index) => {
+                const questionElement = document.createElement('div');
+                questionElement.classList.add('question-block');
+                questionElement.innerHTML = `
+                    <p class="question-text">${index + 1}. ${q.question_text}</p>
+                    <div class="options-container">
+                        ${q.options.map((option, optIndex) => `
+                            <label class="option-label">
+                                <input type="radio" name="question-${q.id}" value="${option}">
+                                <span>${option}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                quizQuestionsContainer.appendChild(questionElement);
+            });
+        }
+
+        function startTimer(duration, display) {
+            let timer = duration, minutes, seconds;
+            timerInterval = setInterval(function () {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                display.textContent = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    clearInterval(timerInterval);
+                    alert("Time's up! Submitting your quiz.");
+                    submitQuiz(null); // Pass null for event as it's not a direct click
+                }
+            }, 1000);
+        }
+
+        function submitQuiz(event) {
+            if (event) event.preventDefault(); // Prevent default form submission if triggered by button
+            clearInterval(timerInterval);
+            const quizForm = document.getElementById('quizForm');
+            const formData = new FormData(quizForm);
+            const userAnswers = {};
+
+            // Collect user answers, mapping question ID to selected option
+            currentQuizData.forEach(q => {
+                const selectedOption = formData.get(`question-${q.id}`);
+                if (selectedOption) {
+                    userAnswers[q.id] = selectedOption;
+                }
+            });
+
+            // Send answers to the backend
+            fetch('/submit_quiz', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ quiz_id: quizId, user_answers: userAnswers }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('quizResults').style.display = 'block';
+                document.getElementById('score').textContent = `${data.score} / ${data.total_questions}`;
+                quizForm.style.display = 'none'; // Hide the form after submission
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('An error occurred while submitting the quiz.');
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch(`/api/quiz/${quizId}`)
+                .then(response => response.json())
+                .then(data => {
+                    currentQuizData = data.questions; // Store fetched questions globally
+                    renderQuiz(currentQuizData);
+                    
+                    const duration = data.time_limit * 60; // Use fetched time_limit
+                    const display = document.querySelector('#time');
+                    startTimer(duration, display);
+                })
+                .catch(error => {
+                    console.error('Error fetching quiz data:', error);
+                    alert('Failed to load quiz. Please try again.');
+                    window.location.href = '/'; // Redirect to home on error
+                });
+        });
+    </script>
+</body>
+</html>

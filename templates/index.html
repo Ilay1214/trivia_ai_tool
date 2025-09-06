@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Your Quiz</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+    <!-- Using Font Awesome for icons. You might need to add this to your requirements.txt
+         or download and serve it locally for production. For now, a CDN is fine. -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h2 class="main-heading">Transform any text into an engaging quiz experience. Perfect for learning, teaching, or just having fun!</h2>
+
+        <div class="card">
+            <h3 class="card-title"><i class="fas fa-brain"></i> Create Your Quiz</h3>
+
+            <form action="/generate_quiz" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="sourceFile" class="form-label"><i class="fas fa-upload"></i> Upload Source File</label>
+                    <div class="file-upload-area">
+                        <input type="file" id="sourceFile" name="sourceFile" accept=".txt,.md,.doc,.docx" hidden multiple>
+                        <label for="sourceFile" class="upload-label">
+                            <i class="fas fa-arrow-up-from-bracket upload-icon"></i>
+                            <p>Click to upload</p>
+                            <span>TXT, MD, DOC, DOCX files supported</span>
+                            <div id="fileNameDisplay" class="file-name-display">No file chosen</div>
+                        </label>
+                    </div>
+                    <p class="tip-text">Tip: Upload documents, articles, or notes to generate quiz questions!</p>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group half-width">
+                        <label for="numQuestions" class="form-label"><i class="fas fa-user-friends"></i> Number of Questions</label>
+                        <input type="number" id="numQuestions" name="numQuestions" value="5" min="1" max="60" class="input-field">
+                        <p class="description-text">Choose between 1-60 questions</p>
+                    </div>
+                    <div class="form-group half-width">
+                        <label for="timeLimit" class="form-label"><i class="fas fa-clock"></i> Time Limit (minutes)</label>
+                        <input type="number" id="timeLimit" name="timeLimit" value="10" min="1" class="input-field">
+                        <p class="description-text">Set a challenging time limit</p>
+                    </div>
+                </div>
+
+                <button type="submit" class="generate-quiz-button">
+                    <i class="fas fa-sparkles"></i> Generate Quiz
+                </button>
+            </form>
+        </div>
+
+        <div class="features-section">
+            <div class="feature-card">
+                <i class="fas fa-brain feature-icon"></i>
+                <p class="feature-title">AI-Powered</p>
+                <p class="feature-description">Smart question generation</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-clock feature-icon"></i>
+                <p class="feature-title">Timed Challenges</p>
+                <p class="feature-description">Real-time countdown</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-star feature-icon"></i>
+                <p class="feature-title">Instant Results</p>
+                <p class="feature-description">Detailed feedback</p>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    document.getElementById('sourceFile').addEventListener('change', function() {
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const fileUploadArea = document.querySelector('.file-upload-area');
+        if (this.files && this.files.length > 0) {
+            // Updated to display all selected file names
+            const fileNames = Array.from(this.files).map(file => file.name);
+            fileNameDisplay.innerHTML = fileNames.join('<br>'); // Join names with a break tag for readability
+            fileUploadArea.classList.add('file-selected');
+        } else {
+            fileNameDisplay.textContent = 'No file chosen';
+            fileUploadArea.classList.remove('file-selected');
+        }
+    });
+</script>
+</html>

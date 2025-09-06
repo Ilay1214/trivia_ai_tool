@@ -29,7 +29,8 @@
             </form>
 
             <div id="quizResults" class="quiz-results" style="display:none;">
-                <h4>Your Score: <span id="score"></span></h4>
+                <h4 class="percentage-score-display" id="percentageScore"></h4>
+                <p class="raw-score-display" id="rawScore"></p>
                 <button onclick="window.location.href='/'" class="generate-quiz-button">Create New Quiz</button>
             </div>
         </div>
@@ -152,7 +153,8 @@
             .then(response => response.json())
             .then(data => {
                 document.getElementById('quizResults').style.display = 'block';
-                document.getElementById('score').textContent = `${data.score} / ${data.total_questions}`;
+                document.getElementById('percentageScore').textContent = `${data.percentage_score}%`;
+                document.getElementById('rawScore').textContent = `You got ${data.score} out of ${data.total_questions} questions right.`;
                 document.getElementById('quizForm').style.display = 'none'; // Hide the form after submission
                 document.querySelector('.quiz-navigation').style.display = 'none'; // Hide navigation buttons
             })

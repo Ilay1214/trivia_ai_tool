@@ -374,3 +374,18 @@ body {
     color: #e94560;
     font-weight: 700;
 }
+
+/* New Styles for Prominent Percentage Score */
+.percentage-score-display {
+    font-size: 4em; /* Much larger font size */
+    color: #e94560; /* Highlight color */
+    font-weight: 700;
+    margin-bottom: 5px; /* Less margin to bring raw score closer */
+    text-shadow: 0 0 20px rgba(233, 69, 96, 0.6); /* Glow effect */
+}
+
+.raw-score-display {
+    font-size: 1.2em;
+    color: #b0b0b0;
+    margin-bottom: 25px;
+}

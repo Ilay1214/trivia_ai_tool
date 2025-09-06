@@ -17,11 +17,15 @@
 
             <div class="timer-display"><i class="fas fa-hourglass-half"></i> Time Left: <span id="time"></span></div>
 
-            <form id="quizForm" action="/submit_quiz" method="POST">
+            <form id="quizForm" onsubmit="submitQuiz(event)">
                 <div id="quizQuestions" class="quiz-questions">
-                    <!-- Questions will be dynamically inserted here -->
+                    <!-- Single question will be dynamically inserted here -->
                 </div>
-                <button type="submit" class="generate-quiz-button" onclick="submitQuiz(event)"><i class="fas fa-check-circle"></i> Submit Quiz</button>
+                <div class="quiz-navigation">
+                    <button type="button" id="prevButton" class="generate-quiz-button" style="display:none;"><i class="fas fa-arrow-left"></i> Previous</button>
+                    <button type="button" id="nextButton" class="generate-quiz-button"><i class="fas fa-arrow-right"></i> Next</button>
+                    <button type="submit" id="submitButton" class="generate-quiz-button" style="display:none;"><i class="fas fa-check-circle"></i> Submit Quiz</button>
+                </div>
             </form>
 
             <div id="quizResults" class="quiz-results" style="display:none;">
@@ -37,27 +41,80 @@
         const timeLimit = {{ time_limit }};
         let timerInterval;
         let currentQuizData = [];
+        let currentQuestionIndex = 0;
+        let userSelections = {}; // Store user's selected answers
 
-        function renderQuiz(quizData) {
+        function displayQuestion() {
             const quizQuestionsContainer = document.getElementById('quizQuestions');
-            quizQuestionsContainer.innerHTML = ''; // Clear previous questions
+            quizQuestionsContainer.innerHTML = ''; // Clear previous question
 
-            quizData.forEach((q, index) => {
-                const questionElement = document.createElement('div');
-                questionElement.classList.add('question-block');
-                questionElement.innerHTML = `
-                    <p class="question-text">${index + 1}. ${q.question_text}</p>
-                    <div class="options-container">
-                        ${q.options.map((option, optIndex) => `
-                            <label class="option-label">
-                                <input type="radio" name="question-${q.id}" value="${option}">
-                                <span>${option}</span>
-                            </label>
-                        `).join('')}
-                    </div>
-                `;
-                quizQuestionsContainer.appendChild(questionElement);
-            });
+            if (currentQuestionIndex < 0 || currentQuestionIndex >= currentQuizData.length) {
+                return; // Should not happen with proper navigation
+            }
+
+            const q = currentQuizData[currentQuestionIndex];
+            const questionElement = document.createElement('div');
+            questionElement.classList.add('question-block');
+            questionElement.innerHTML = `
+                <p class="question-text">${currentQuestionIndex + 1}. ${q.question_text}</p>
+                <div class="options-container">
+                    ${q.options.map((option, optIndex) => `
+                        <label class="option-label">
+                            <input type="radio" name="question-${q.id}" value="${option}" ${userSelections[q.id] === option ? 'checked' : ''}>
+                            <span>${option}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+            quizQuestionsContainer.appendChild(questionElement);
+
+            updateNavigationButtons();
+        }
+
+        function updateNavigationButtons() {
+            const prevButton = document.getElementById('prevButton');
+            const nextButton = document.getElementById('nextButton');
+            const submitButton = document.getElementById('submitButton');
+
+            // Previous button logic
+            if (currentQuestionIndex === 0) {
+                prevButton.style.display = 'none';
+            } else {
+                prevButton.style.display = 'block';
+            }
+
+            // Next/Submit button logic
+            if (currentQuestionIndex === currentQuizData.length - 1) {
+                nextButton.style.display = 'none';
+                submitButton.style.display = 'block';
+            } else {
+                nextButton.style.display = 'block';
+                submitButton.style.display = 'none';
+            }
+        }
+
+        function saveCurrentAnswer() {
+            const currentQuestion = currentQuizData[currentQuestionIndex];
+            const selectedOption = document.querySelector(`input[name="question-${currentQuestion.id}"]:checked`);
+            if (selectedOption) {
+                userSelections[currentQuestion.id] = selectedOption.value;
+            }
+        }
+
+        function goToNextQuestion() {
+            saveCurrentAnswer();
+            if (currentQuestionIndex < currentQuizData.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            }
+        }
+
+        function goToPreviousQuestion() {
+            saveCurrentAnswer();
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+            }
         }
 
         function startTimer(duration, display) {
@@ -82,31 +139,22 @@
         function submitQuiz(event) {
             if (event) event.preventDefault(); // Prevent default form submission if triggered by button
             clearInterval(timerInterval);
-            const quizForm = document.getElementById('quizForm');
-            const formData = new FormData(quizForm);
-            const userAnswers = {};
-
-            // Collect user answers, mapping question ID to selected option
-            currentQuizData.forEach(q => {
-                const selectedOption = formData.get(`question-${q.id}`);
-                if (selectedOption) {
-                    userAnswers[q.id] = selectedOption;
-                }
-            });
-
+            saveCurrentAnswer(); // Save the answer for the last question
+            
             // Send answers to the backend
             fetch('/submit_quiz', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ quiz_id: quizId, user_answers: userAnswers }),
+                body: JSON.stringify({ quiz_id: quizId, user_answers: userSelections }),
             })
             .then(response => response.json())
             .then(data => {
                 document.getElementById('quizResults').style.display = 'block';
                 document.getElementById('score').textContent = `${data.score} / ${data.total_questions}`;
-                quizForm.style.display = 'none'; // Hide the form after submission
+                document.getElementById('quizForm').style.display = 'none'; // Hide the form after submission
+                document.querySelector('.quiz-navigation').style.display = 'none'; // Hide navigation buttons
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -115,11 +163,17 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Event Listeners for navigation buttons
+            document.getElementById('prevButton').addEventListener('click', goToPreviousQuestion);
+            document.getElementById('nextButton').addEventListener('click', goToNextQuestion);
+
             fetch(`/api/quiz/${quizId}`)
                 .then(response => response.json())
                 .then(data => {
                     currentQuizData = data.questions; // Store fetched questions globally
-                    renderQuiz(currentQuizData);
+                    if (currentQuizData.length > 0) {
+                        displayQuestion(); // Display the first question
+                    }
                     
                     const duration = data.time_limit * 60; // Use fetched time_limit
                     const display = document.querySelector('#time');

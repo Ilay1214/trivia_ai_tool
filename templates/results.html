@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h2 class="main-heading">Quiz Results!</h2>
+
+        <div class="card quiz-results-card">
+            <h3 class="card-title"><i class="fas fa-trophy"></i> Your Performance</h3>
+            <p class="quiz-info">Quiz ID: {{ quiz_id }} | Number of Questions: {{ num_questions }}</p>
+
+            <div class="quiz-results-summary">
+                <h4 class="percentage-score-display" id="percentageScore"></h4>
+                <p class="raw-score-display" id="rawScore"></p>
+            </div>
+
+            <h3 class="card-title questions-review-title"><i class="fas fa-list-check"></i> Question Breakdown</h3>
+            <div id="questionsBreakdown" class="questions-breakdown">
+                <!-- Questions breakdown will be dynamically inserted here -->
+            </div>
+
+            <button onclick="window.location.href='/'" class="generate-quiz-button mt-4"><i class="fas fa-home"></i> Create New Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        const quizId = {{ quiz_id }};
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch(`/api/quiz-results/${quizId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('percentageScore').textContent = `${data.percentage_score}%`;
+                    document.getElementById('rawScore').textContent = `You got ${data.score} out of ${data.total_questions} questions right.`;
+                    
+                    const questionsBreakdownContainer = document.getElementById('questionsBreakdown');
+                    questionsBreakdownContainer.innerHTML = ''; // Clear previous content
+
+                    data.results_breakdown.forEach((q, index) => {
+                        const questionResultElement = document.createElement('div');
+                        questionResultElement.classList.add('question-result-block');
+                        questionResultElement.classList.add(q.is_correct ? 'correct-answer' : 'wrong-answer');
+
+                        let optionsHtml = '';
+                        q.options.forEach(option => {
+                            let optionClass = '';
+                            if (option === q.correct_answer) {
+                                optionClass = 'correct';
+                            } else if (option === q.user_answer && !q.is_correct) {
+                                optionClass = 'user-wrong';
+                            }
+                            optionsHtml += `<p class="option-review ${optionClass}">${option}</p>`;
+                        });
+
+                        questionResultElement.innerHTML = `
+                            <div class="question-header">
+                                <h5 class="question-review-text">${index + 1}. ${q.question_text}</h5>
+                                <button class="review-toggle-button"><i class="fas fa-eye"></i> Review</button>
+                            </div>
+                            <div class="review-details" style="display:none;">
+                                ${optionsHtml}
+                                <p class="your-answer">Your Answer: <span class="${q.is_correct ? 'text-success' : 'text-danger'}">${q.user_answer || 'Not answered'}</span></p>
+                                <p class="correct-answer-text">Correct Answer: <span>${q.correct_answer}</span></p>
+                                ${!q.is_correct && q.explanation ? `<p class="explanation-text">Explanation: <span>${q.explanation}</span></p>` : ''}
+                            </div>
+                        `;
+                        questionsBreakdownContainer.appendChild(questionResultElement);
+                    });
+
+                    // Add event listeners for review buttons
+                    document.querySelectorAll('.review-toggle-button').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const details = this.closest('.question-result-block').querySelector('.review-details');
+                            if (details.style.display === 'none') {
+                                details.style.display = 'block';
+                                this.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Review';
+                            } else {
+                                details.style.display = 'none';
+                                this.innerHTML = '<i class="fas fa-eye"></i> Review';
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching quiz results:', error);
+                    alert('Failed to load quiz results. Please try again.');
+                    window.location.href = '/'; // Redirect to home on error
+                });
+        });
+    </script>
+</body>
+</html>

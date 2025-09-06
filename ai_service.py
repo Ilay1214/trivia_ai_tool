@@ -26,13 +26,13 @@ def generate_quiz_questions(text_content, num_questions):
     client = Groq(api_key=GROQ_API_KEY)
 
     # Basic prompt for generating quiz questions
-    prompt = f"Given the following text, generate {num_questions} multiple-choice quiz questions. Each question must have exactly 4 options (A, B, C, D) and a single correct answer. Format the output strictly as follows:\n\n1. Question text?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nCorrect Answer: Option A\n\n2. Second question text?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nCorrect Answer: Option B\n\n... and so on.\n\nText: {text_content}\n\nQuestions:"
+    prompt = f"Given the following text, generate {num_questions} multiple-choice quiz questions. Each question must have exactly 4 options (A, B, C, D) and a single correct answer. Provide a short explanation for the correct answer. Format the output strictly as follows:\n\n1. Question text?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nCorrect Answer: Option A\nExplanation: [Short explanation here]\n\n2. Second question text?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nCorrect Answer: Option B\nExplanation: [Short explanation here]\n\n... and so on.\n\nText: {text_content}\n\nQuestions:"
 
     chat_completion = client.chat.completions.create(
         messages=[
             {
                 "role": "user",
-                "content": f"Given the following text, generate {num_questions} multiple-choice quiz questions. Each question must have exactly 4 options (A, B, C, D) and a single correct answer. Format the output strictly as follows:\n\n1. Question text?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nCorrect Answer: Option A\n\n2. Second question text?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nCorrect Answer: Option B\n\n... and so on.\n\nText: {text_content}\n\nQuestions:"
+                "content": f"Given the following text, generate {num_questions} multiple-choice quiz questions. Each question must have exactly 4 options (A, B, C, D) and a single correct answer. Provide a short explanation for the correct answer. Format the output strictly as follows:\n\n1. Question text?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nCorrect Answer: Option A\nExplanation: [Short explanation here]\n\n2. Second question text?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nCorrect Answer: Option B\nExplanation: [Short explanation here]\n\n... and so on.\n\nText: {text_content}\n\nQuestions:"
             }
         ],
         model="llama-3.3-70b-versatile", # You can choose other models available on Groq

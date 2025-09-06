@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from ai_service import read_file_content, generate_quiz_questions
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
+import re # Import regex module
 
 # Load environment variables from .env file
 load_dotenv()
@@ -34,6 +35,7 @@ class Question(db.Model):
     option_c = db.Column(db.String(200), nullable=False)
     option_d = db.Column(db.String(200), nullable=False)
     correct_answer = db.Column(db.String(200), nullable=False) # Stores the full correct option text
+    explanation = db.Column(db.Text, nullable=True) # New field for explanation
 
     def to_dict(self):
         return {
@@ -45,7 +47,8 @@ class Question(db.Model):
                 self.option_c,
                 self.option_d
             ],
-            'correct_answer': self.correct_answer
+            'correct_answer': self.correct_answer,
+            'explanation': self.explanation
         }
 
 # Create database tables if they don't exist
@@ -114,44 +117,62 @@ def generate_quiz():
             # Catch other potential errors from the AI service
             return f"An error occurred during quiz generation: {e}", 500
 
+        print(f"Raw AI Generated Questions: {generated_questions[:1000]}...") # Debug print for raw AI output
+
         # Parse generated questions and save to database
         new_quiz = Quiz(num_questions=num_questions, time_limit=time_limit)
         db.session.add(new_quiz)
         db.session.commit() # Commit to get quiz.id
 
-        # Split the generated questions into individual question blocks
-        question_blocks = generated_questions.strip().split('\n\n')
-        for block in question_blocks:
-            lines = [line.strip() for line in block.split('\n') if line.strip()]
-            if not lines: continue
+        # New parsing logic
+        structured_questions = []
+        current_question = {}
+        question_number_regex = re.compile(r"^\d+\.\s*") # Matches "1. ", "2. ", etc.
+        option_regex = re.compile(r"^[A-D]\)\s*") # Matches "A) ", "B) ", etc.
 
-            question_text = ""
-            options = []
-            correct_answer = ""
+        lines = generated_questions.strip().split('\n')
 
-            # Parse question text and options
-            for line in lines:
-                if line.startswith(f'{question_blocks.index(block) + 1}.'):
-                    question_text = line.split('. ', 1)[1]
-                elif line.startswith(('A)', 'B)', 'C)', 'D)')):
-                    options.append(line)
-                elif line.startswith('Correct Answer:'):
-                    correct_answer = line.split(':', 1)[1].strip()
+        for line in lines:
+            line = line.strip()
+            if not line: # Skip empty lines
+                continue
 
-            if len(options) == 4 and question_text and correct_answer:
+            if question_number_regex.match(line):
+                # Found a new question
+                if current_question:
+                    structured_questions.append(current_question)
+                current_question = {
+                    'question_text': question_number_regex.sub('', line).strip(),
+                    'options': [],
+                    'correct_answer': '',
+                    'explanation': ''
+                }
+            elif option_regex.match(line) and current_question:
+                current_question['options'].append(line)
+            elif line.startswith("Correct Answer:") and current_question:
+                current_question['correct_answer'] = line.replace("Correct Answer:", "").strip()
+            elif line.startswith("Explanation:") and current_question:
+                current_question['explanation'] = line.replace("Explanation:", "").strip()
+
+        if current_question: # Add the last question
+            structured_questions.append(current_question)
+
+        for q_data in structured_questions:
+            if len(q_data['options']) == 4 and q_data['question_text'] and q_data['correct_answer'] and q_data['explanation']:
                 new_question = Question(
                     quiz_id=new_quiz.id,
-                    question_text=question_text,
-                    option_a=options[0] if len(options) > 0 else '',
-                    option_b=options[1] if len(options) > 1 else '',
-                    option_c=options[2] if len(options) > 2 else '',
-                    option_d=options[3] if len(options) > 3 else '',
-                    correct_answer=correct_answer
+                    question_text=q_data['question_text'],
+                    option_a=q_data['options'][0],
+                    option_b=q_data['options'][1],
+                    option_c=q_data['options'][2],
+                    option_d=q_data['options'][3],
+                    correct_answer=q_data['correct_answer'],
+                    explanation=q_data['explanation']
                 )
                 db.session.add(new_question)
             else:
-                print(f"Skipping malformed question block: {block}")
-
+                print(f"Skipping malformed structured question: {q_data}") # Debug print for structured data
+        
         db.session.commit()
 
         # Store quiz_id in session instead of raw questions
@@ -168,6 +189,7 @@ def generate_quiz():
 def get_quiz_data(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
     questions_data = [q.to_dict() for q in quiz.questions]
+    print(f"API Quiz Data sent to frontend: {questions_data[:500]}...") # Debug print
     return jsonify({
         'id': quiz.id,
         'num_questions': quiz.num_questions,
@@ -210,6 +232,9 @@ def submit_quiz():
     quiz_id = data.get('quiz_id')
     user_answers = data.get('user_answers', {})
 
+    # Store user answers in session for review on results page
+    session[f'quiz_{quiz_id}_user_answers'] = user_answers
+
     quiz = Quiz.query.get(quiz_id)
     if not quiz:
         return jsonify({'error': 'Quiz not found'}), 404
@@ -222,18 +247,94 @@ def submit_quiz():
 
     score_per_question = 100 / total_questions
     percentage_score = 0
+    results_breakdown = []
 
     for question in quiz.questions:
         question_id = str(question.id) # Ensure key matches frontend (string)
-        if question_id in user_answers:
-            if user_answers[question_id] == question.correct_answer:
-                score += 1
-                percentage_score += score_per_question
+        user_answer = user_answers.get(question_id)
+        is_correct = (user_answer == question.correct_answer)
+        
+        if is_correct:
+            score += 1
+            percentage_score += score_per_question
+
+        results_breakdown.append({
+            'question_id': question.id,
+            'question_text': question.question_text,
+            'user_answer': user_answer,
+            'correct_answer': question.correct_answer,
+            'is_correct': is_correct,
+            'options': [question.option_a, question.option_b, question.option_c, question.option_d]
+        })
     
     # Round the percentage score to two decimal places
     percentage_score = round(percentage_score, 2)
 
-    return jsonify({'score': score, 'total_questions': total_questions, 'percentage_score': percentage_score})
+    return jsonify({
+        'quiz_id': quiz_id,
+        'score': score,
+        'total_questions': total_questions,
+        'percentage_score': percentage_score,
+        'results_breakdown': results_breakdown
+    })
+
+@app.route('/api/quiz-results/<int:quiz_id>')
+def get_quiz_results(quiz_id):
+    quiz = Quiz.query.get(quiz_id)
+    if not quiz:
+        return jsonify({'error': 'Quiz not found'}), 404
+
+    # Re-calculate score and breakdown for consistent data return
+    score = 0
+    total_questions = len(quiz.questions)
+    percentage_score = 0
+    results_breakdown = []
+
+    if total_questions > 0:
+        score_per_question = 100 / total_questions
+    
+    # For results page, we need to retrieve user answers somehow.
+    # For now, we'll assume a dummy user_answers or retrieve from a session if needed for review.
+    # In a real app, user answers for a completed quiz would likely be stored in the DB.
+    # For this implementation, we will fetch user answers from the session if they exist
+    # This is a simplification; a persistent solution would store user answers in the DB.
+    user_answers_from_session = session.get(f'quiz_{quiz_id}_user_answers', {})
+
+    for question in quiz.questions:
+        user_answer = user_answers_from_session.get(str(question.id))
+        is_correct = (user_answer == question.correct_answer)
+
+        if is_correct:
+            score += 1
+            if total_questions > 0:
+                percentage_score += score_per_question
+        
+        results_breakdown.append({
+            'question_id': question.id,
+            'question_text': question.question_text,
+            'user_answer': user_answer,
+            'correct_answer': question.correct_answer,
+            'is_correct': is_correct,
+            'options': [question.option_a, question.option_b, question.option_c, question.option_d],
+            'explanation': question.explanation
+        })
+    
+    percentage_score = round(percentage_score, 2)
+
+    return jsonify({
+        'quiz_id': quiz.id,
+        'score': score,
+        'total_questions': total_questions,
+        'percentage_score': percentage_score,
+        'results_breakdown': results_breakdown
+    })
+
+@app.route('/results/<int:quiz_id>')
+def results(quiz_id):
+    quiz = Quiz.query.get(quiz_id)
+    if not quiz:
+        return redirect(url_for('index'))
+    return render_template('results.html', quiz_id=quiz_id, num_questions=quiz.num_questions)
 
 if __name__ == '__main__':
     app.run(debug=True)
